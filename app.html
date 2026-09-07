@@ -209,6 +209,21 @@
   .bell-badge{position:absolute;top:-4px;right:-4px;width:8px;height:8px;border-radius:50%;background:var(--danger);display:none;box-shadow:0 0 0 2px var(--surface-2);}
   .status-card.fault .bell-badge{display:block;}
 
+  .incident-list{margin-top:8px;display:flex;flex-direction:column;gap:6px;}
+  .incident-list:empty{margin-top:0;}
+  .incident-row{
+    display:flex;align-items:center;gap:10px;cursor:pointer;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px;
+  }
+  .incident-row:active{background:var(--surface-2);}
+  .incident-row .ir-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--danger);}
+  .incident-row.taken .ir-dot{background:var(--text-faint);}
+  .incident-row .ir-text{flex:1;min-width:0;}
+  .incident-row .ir-eq{font-size:12.5px;font-weight:700;color:var(--text);}
+  .incident-row .ir-sub{font-size:11px;color:var(--text-muted);margin-top:1px;}
+  .incident-row .ir-chev{flex-shrink:0;}
+  .incident-row .ir-chev svg{width:14px;height:14px;stroke:var(--text-faint);}
+
   .quick-actions{margin-top:14px;display:flex;flex-direction:column;gap:9px;}
   .quick-actions:first-of-type{margin-top:20px;}
   .section-label{font-size:11px;letter-spacing:.06em;color:var(--text-faint);font-weight:700;margin:20px 2px 0;}
@@ -619,6 +634,7 @@
                     <div class="bell-badge"></div>
                   </div>
                 </div>
+                <div class="incident-list" id="incidentListSSC"></div>
 
                 <div class="status-card" id="statusCardNAiSE">
                   <div class="status-dot"></div>
@@ -631,6 +647,7 @@
                     <div class="bell-badge"></div>
                   </div>
                 </div>
+                <div class="incident-list" id="incidentListNAiSE"></div>
 
                 <div class="quick-actions">
                   <div class="qbtn" id="qbtnRemove">
@@ -1156,6 +1173,7 @@
     tabHome: $('tabHome'), tabHistorik: $('tabHistorik'),
     statusCardSSC: $('statusCardSSC'), statusT1SSC: $('statusT1SSC'), statusT2SSC: $('statusT2SSC'), bellBtnSSC: $('bellBtnSSC'),
     statusCardNAiSE: $('statusCardNAiSE'), statusT1NAiSE: $('statusT1NAiSE'), statusT2NAiSE: $('statusT2NAiSE'), bellBtnNAiSE: $('bellBtnNAiSE'),
+    incidentListSSC: $('incidentListSSC'), incidentListNAiSE: $('incidentListNAiSE'),
     detailOverlay: $('detailOverlay'), closeDetail: $('closeDetail'),
     dTitle: $('dTitle'), dSub: $('dSub'), dCode: $('dCode'), dPlain: $('dPlain'), dActionsList: $('dActionsList'),
     acceptNote: $('acceptNote'), acceptedByBlock: $('acceptedByBlock'), acceptedByName: $('acceptedByName'),
@@ -2040,14 +2058,15 @@
   });
 
   function getCardEls(system){
-    if(system === 'NAiSE') return { card: els.statusCardNAiSE, t1: els.statusT1NAiSE, t2: els.statusT2NAiSE, bell: els.bellBtnNAiSE, normalT2:'NAiSE' };
-    return { card: els.statusCardSSC, t1: els.statusT1SSC, t2: els.statusT2SSC, bell: els.bellBtnSSC, normalT2:'SSC Automatlager' };
+    if(system === 'NAiSE') return { card: els.statusCardNAiSE, t1: els.statusT1NAiSE, t2: els.statusT2NAiSE, bell: els.bellBtnNAiSE, list: els.incidentListNAiSE, normalT2:'NAiSE' };
+    return { card: els.statusCardSSC, t1: els.statusT1SSC, t2: els.statusT2SSC, bell: els.bellBtnSSC, list: els.incidentListSSC, normalT2:'SSC Automatlager' };
   }
   function resetCard(system){
     const c = getCardEls(system);
     c.card.classList.remove('fault');
     c.t1.textContent = 'Normal drift';
     c.t2.textContent = c.normalT2;
+    c.list.innerHTML = '';
   }
   function updateCardForSystem(system){
     const c = getCardEls(system);
@@ -2058,9 +2077,32 @@
       const inc = activeIncidents[ids[0]];
       c.t1.textContent = inc.acceptedBy ? 'Åtgärdas' : 'Fel upptäckt';
       c.t2.textContent = FAULTS[inc.key] ? FAULTS[inc.key].equip : inc.key;
+      c.list.innerHTML = '';
     } else {
       c.t1.textContent = ids.length + ' aktiva fel';
-      c.t2.textContent = ids.map(id => FAULTS[activeIncidents[id].key] ? FAULTS[activeIncidents[id].key].equip : activeIncidents[id].key).join(', ');
+      c.t2.textContent = 'Välj vilket som ska åtgärdas';
+      const sorted = ids.slice().sort((a,b) => activeIncidents[a].ts - activeIncidents[b].ts);
+      c.list.innerHTML = sorted.map(id => {
+        const inc = activeIncidents[id];
+        const f = FAULTS[inc.key];
+        const sub = inc.acceptedBy ? ('Åtgärdas av ' + inc.acceptedBy) : 'Väntar på förare';
+        return `
+          <div class="incident-row${inc.acceptedBy ? ' taken' : ''}" data-incident-id="${id}">
+            <div class="ir-dot"></div>
+            <div class="ir-text">
+              <div class="ir-eq">${f ? f.equip : inc.key}</div>
+              <div class="ir-sub">${sub}</div>
+            </div>
+            <div class="ir-chev"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></div>
+          </div>
+        `;
+      }).join('');
+      c.list.querySelectorAll('.incident-row').forEach(row => {
+        row.addEventListener('click', () => enterApp(() => {
+          closeReportOverlay(); closeAISheet(); closeForm();
+          openDetailForIncident(row.getAttribute('data-incident-id'));
+        }));
+      });
     }
   }
 
