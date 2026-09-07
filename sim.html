@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logistik-AI — Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --bg-page:#e9edf1;
+    --surface:#ffffff;
+    --surface-2:#f4f6f8;
+    --surface-3:#e9edf1;
+    --border:#e1e5ea;
+    --border-strong:#c7ced6;
+    --text:#14171c;
+    --text-muted:#5b6472;
+    --text-faint:#8a93a0;
+    --brand:#003d6b;
+    --brand-2:#0b5fa5;
+    --brand-tint:#e7eef5;
+    --danger:#c4302b;
+    --danger-tint:#fbeae9;
+    --success:#1f7a4d;
+    --success-tint:#e9f5ee;
+    --font-sans:'Inter',ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:var(--font-sans);
+    color:var(--text);
+    background:var(--bg-page);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px 16px;
+  }
+  .panel{
+    width:min(420px, 94vw);
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:18px;
+    padding:24px;
+    box-shadow:0 30px 60px -30px rgba(0,0,0,.25);
+  }
+  .ptitle{font-family:var(--font-mono);font-size:11px;letter-spacing:.12em;color:var(--text-faint);margin:0 0 4px;}
+  h1{font-size:19px;margin:0 0 6px;font-weight:800;}
+  .pintro{font-size:12.5px;color:var(--text-muted);line-height:1.5;margin:0 0 18px;}
+
+  .status-banner{
+    display:flex;align-items:center;gap:10px;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:12px;
+    padding:12px 14px;margin-bottom:18px;transition:background .3s ease, border-color .3s ease;
+  }
+  .status-banner.active{background:var(--danger-tint);border-color:#f1c3bf;}
+  .status-dot{width:9px;height:9px;border-radius:50%;background:var(--success);flex-shrink:0;box-shadow:0 0 0 4px var(--success-tint);}
+  .status-banner.active .status-dot{background:var(--danger);box-shadow:0 0 0 4px var(--danger-tint);animation:pulse 1.4s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 4px var(--danger-tint);}50%{box-shadow:0 0 0 8px transparent;}}
+  .status-text{font-size:12.5px;font-weight:600;}
+  .status-text .sub{font-size:11px;color:var(--text-muted);font-weight:400;margin-top:1px;}
+
+  .psub{font-size:10.5px;letter-spacing:.06em;color:var(--text-faint);font-weight:700;margin:16px 0 8px;}
+  .psub:first-of-type{margin-top:0;}
+  .pbtn{
+    width:100%;text-align:left;background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    border-radius:11px;padding:12px 14px;font-family:var(--font-sans);font-size:13px;font-weight:600;
+    cursor:pointer;margin-bottom:8px;display:flex;align-items:center;gap:10px;
+    transition:border-color .15s ease, opacity .15s ease;
+  }
+  .pbtn .peq{font-family:var(--font-mono);font-size:10.5px;color:var(--brand-2);background:var(--brand-tint);border-radius:5px;padding:2px 6px;flex-shrink:0;}
+  .pbtn:hover{border-color:var(--border-strong);}
+  .pbtn:active{transform:scale(.99);}
+  .pbtn[disabled]{opacity:.4;cursor:default;}
+
+  .reset-btn{
+    width:100%;margin-top:8px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-muted);
+    border-radius:11px;padding:12px 14px;font-family:var(--font-sans);font-size:13px;font-weight:600;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .reset-btn:hover{border-color:var(--border-strong);}
+  .reset-btn svg{width:15px;height:15px;stroke:currentColor;}
+
+  .connstate{
+    margin-top:16px;padding-top:14px;border-top:1px solid var(--border);
+    font-size:11.5px;color:var(--text-faint);display:flex;align-items:center;gap:7px;
+  }
+  .connstate .dot{width:7px;height:7px;border-radius:50%;background:var(--text-faint);flex-shrink:0;}
+  .connstate.ok .dot{background:var(--success);}
+  .connstate.err .dot{background:var(--danger);}
+
+  .pin-gate{
+    position:fixed;inset:0;z-index:999;background:var(--bg-page);
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .pin-card{
+    width:min(320px,92vw);background:var(--surface);border:1px solid var(--border);
+    border-radius:18px;padding:26px 24px;box-shadow:0 30px 60px -30px rgba(0,0,0,.25);text-align:center;
+  }
+  .pin-card h2{font-size:17px;margin:0 0 6px;font-weight:800;}
+  .pin-card p{font-size:12.5px;color:var(--text-muted);margin:0 0 18px;}
+  .pin-input{
+    width:100%;text-align:center;letter-spacing:.5em;font-size:22px;font-family:var(--font-mono);
+    border:1px solid var(--border);border-radius:11px;padding:12px;margin-bottom:10px;color:var(--text);
+    box-sizing:border-box;
+  }
+  .pin-input:focus{outline:none;border-color:var(--brand-2);}
+  .pin-error{font-size:12px;color:var(--danger);min-height:16px;margin-bottom:6px;}
+  .pin-card.shake{animation:pinshake .4s ease;}
+  @keyframes pinshake{
+    0%,100%{transform:translateX(0);}
+    20%{transform:translateX(-6px);}40%{transform:translateX(6px);}
+    60%{transform:translateX(-4px);}80%{transform:translateX(4px);}
+  }
+  .pin-submit{
+    width:100%;border:none;border-radius:12px;padding:13px 16px;font-family:var(--font-sans);
+    font-size:14px;font-weight:700;cursor:pointer;background:var(--brand);color:#fff;
+  }
+  .pin-submit:active{transform:scale(.98);}
+
+</style>
+</head>
+<body>
+  <div class="pin-gate" id="pinGate">
+    <div class="pin-card" id="pinCard">
+      <h2>Logistik-AI</h2>
+      <p>Ange pinkod för att öppna simulatorn.</p>
+      <input type="password" inputmode="numeric" pattern="[0-9]*" class="pin-input" id="pinInput" maxlength="6" autocomplete="off">
+      <div class="pin-error" id="pinError"></div>
+      <button class="pin-submit" id="pinSubmit">Lås upp</button>
+    </div>
+  </div>
+  <script>
+  (function(){
+    var PIN = '7777'; // Byt till din egen kod
+    var STORAGE_KEY = 'logistikAI_sim_unlocked';
+    var gate = document.getElementById('pinGate');
+    var input = document.getElementById('pinInput');
+    var err = document.getElementById('pinError');
+    var card = document.getElementById('pinCard');
+    var submit = document.getElementById('pinSubmit');
+
+    function unlock(){
+      gate.style.display = 'none';
+      try{ localStorage.setItem(STORAGE_KEY, '1'); }catch(e){}
+    }
+    function tryPin(){
+      if(input.value === PIN){
+        unlock();
+      } else {
+        err.textContent = 'Fel pinkod';
+        card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake');
+        input.value = '';
+        input.focus();
+      }
+    }
+    try{
+      if(localStorage.getItem(STORAGE_KEY) === '1'){ gate.style.display = 'none'; }
+    }catch(e){}
+    submit.addEventListener('click', tryPin);
+    input.addEventListener('keydown', function(e){ if(e.key === 'Enter') tryPin(); });
+    if(gate.style.display !== 'none') setTimeout(function(){ input.focus(); }, 100);
+  })();
+  </script>
+
+  <div class="panel">
+    <p class="ptitle">LOGISTIK-AI</p>
+    <h1>Simulator</h1>
+    <p class="pintro">Trigga ett fel här så dyker det upp som en pushnotis i kollegornas app, i realtid. Endast ett fel kan vara aktivt åt gången.</p>
+
+    <div class="status-banner" id="statusBanner">
+      <div class="status-dot"></div>
+      <div class="status-text">
+        <div id="statusMain">Väntar på simulerat fel</div>
+        <div class="sub" id="statusSub">Alla appar visar normal drift</div>
+      </div>
+    </div>
+
+    <p class="psub">SSC AUTOMATLAGER</p>
+    <button class="pbtn" data-fault="vna04"><span class="peq">VNA 04</span> Loadsensor 1 lost load</button>
+    <button class="pbtn" data-fault="vna02"><span class="peq">VNA 02</span> Drop no horizontal beam found</button>
+    <button class="pbtn" data-fault="exv01"><span class="peq">EXV 01</span> Inconsistent load detection</button>
+    <button class="pbtn" data-fault="kontroll"><span class="peq">A0065</span> Waiting for etricc results</button>
+
+    <p class="psub">NAiSE</p>
+    <button class="pbtn" data-fault="naisePall"><span class="peq">NAiSE</span> Pall trasig</button>
+    <button class="pbtn" data-fault="naiseBlockerad"><span class="peq">NAiSE</span> Spångbinge blockerad</button>
+    <button class="pbtn" data-fault="naiseRestart"><span class="peq">NAiSE</span> Behöver omstart</button>
+
+    <button class="reset-btn" id="resetBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+      Återställ (rensa aktivt fel)
+    </button>
+
+    <div class="connstate" id="connState">
+      <div class="dot"></div>
+      <span id="connLabel">Ansluter…</span>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const FAULT_LABELS = {
+    vna04: 'VNA 04 · Loadsensor 1 lost load',
+    vna02: 'VNA 02 · Drop no horizontal beam found',
+    exv01: 'EXV 01 · Inconsistent load detection',
+    kontroll: 'Kontroll · A0065',
+    naisePall: 'NAiSE · Pall trasig',
+    naiseBlockerad: 'NAiSE · Spångbinge blockerad',
+    naiseRestart: 'NAiSE · Behöver omstart'
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    statusBanner: $('statusBanner'), statusMain: $('statusMain'), statusSub: $('statusSub'),
+    resetBtn: $('resetBtn'), connState: $('connState'), connLabel: $('connLabel'),
+  };
+  const buttons = Array.from(document.querySelectorAll('.pbtn[data-fault]'));
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAHmaPChqNAe42E4osFs-tXT7W8ncHgn00",
+    authDomain: "logistik-ai.firebaseapp.com",
+    databaseURL: "https://logistik-ai-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "logistik-ai",
+    storageBucket: "logistik-ai.firebasestorage.app",
+    messagingSenderId: "904402675321",
+    appId: "1:904402675321:web:e44ddb788d404c106cd6a8"
+  };
+
+  let currentActive = null;
+
+  function updateUI(){
+    const active = !!(currentActive && currentActive.key);
+    buttons.forEach(b => b.disabled = active);
+    els.statusBanner.classList.toggle('active', active);
+    if(active){
+      els.statusMain.textContent = FAULT_LABELS[currentActive.key] || currentActive.key;
+      els.statusSub.textContent = 'Väntar på åtgärd i appen — trycka Återställ för att rensa';
+    } else {
+      els.statusMain.textContent = 'Väntar på simulerat fel';
+      els.statusSub.textContent = 'Alla appar visar normal drift';
+    }
+  }
+
+  let faultRef = null;
+  try{
+    firebase.initializeApp(firebaseConfig);
+    faultRef = firebase.database().ref('logistikAI/currentFault');
+    faultRef.on('value', (snap) => {
+      currentActive = snap.val();
+      updateUI();
+      els.connState.classList.remove('err');
+      els.connState.classList.add('ok');
+      els.connLabel.textContent = 'Ansluten';
+    });
+    faultRef.on('error' , () => {
+      els.connState.classList.remove('ok');
+      els.connState.classList.add('err');
+      els.connLabel.textContent = 'Kunde inte ansluta — kontrollera Firebase-konfigurationen';
+    });
+  }catch(e){
+    els.connState.classList.add('err');
+    els.connLabel.textContent = 'Firebase ej konfigurerat — fyll i firebaseConfig i koden';
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if(!faultRef || (currentActive && currentActive.key)) return;
+      faultRef.set({ key: btn.getAttribute('data-fault'), ts: Date.now() });
+    });
+  });
+
+  els.resetBtn.addEventListener('click', () => {
+    if(faultRef) faultRef.remove();
+  });
+})();
+</script>
+</body>
+</html>
