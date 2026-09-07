@@ -1061,7 +1061,7 @@
         {text:'Stäng av trucken helt och kör pallen manuellt till slutläge.', count:2, total:24}
       ],
       notifTitle:'VNA 04 · Fel upptäckt', notifText:'VNA 04 rapporterar förlorad last.',
-      beskrivning:'Loadsensor 1 lost load — VNA 04'
+      beskrivning:'Loadsensor 1 lost load — VNA 04', short:'VNA 04 — Tappad last'
     },
     vna02: {
       system:'SSC', equip:'VNA 02', title:'SSC Automatlager', code:'DROP NO HORIZONTAL BEAM FOUND',
@@ -1072,7 +1072,7 @@
         {text:'Kör omstart vid hemmaläge.', count:3, total:15}
       ],
       notifTitle:'VNA 02 · Fel upptäckt', notifText:'Ingen bjälke hittad vid avlämning.',
-      beskrivning:'Drop no horizontal beam found — VNA 02'
+      beskrivning:'Drop no horizontal beam found — VNA 02', short:'VNA 02 — Ingen bjälke'
     },
     exv01: {
       system:'SSC', equip:'EXV 01', title:'SSC Automatlager', code:'INCONSISTENT LOAD DETECTION',
@@ -1081,7 +1081,7 @@
         {text:'Kontrollera gafflarna och ta bort eventuella träflisor eller skräp.', count:4, total:4}
       ],
       notifTitle:'EXV 01 · Fel upptäckt', notifText:'Inkonsekvent lastavläsning på gaffeln.',
-      beskrivning:'Inconsistent load detection — EXV 01'
+      beskrivning:'Inconsistent load detection — EXV 01', short:'EXV 01 — Skräp på gaffel'
     },
     kontroll: {
       system:'SSC', equip:'Kontroll', title:'SSC Automatlager', code:'A0065: WAITING FOR ETRICC MEASUREMENTS RESULTS',
@@ -1092,7 +1092,7 @@
         {text:'Åtgärda enligt beskrivning.', count:6, total:37}
       ],
       notifTitle:'Kontroll · Fel upptäckt', notifText:'Väntar på mätresultat från Etricc (A0065).',
-      beskrivning:'A0065: Waiting for etricc measurements results — Kontroll'
+      beskrivning:'A0065: Waiting for etricc measurements results — Kontroll', short:'Kontroll — A0065'
     },
     vna03full: {
       system:'SSC', equip:'VNA 03', title:'SSC Automatlager', code:'FULL AFTER DROP',
@@ -1103,7 +1103,7 @@
         {text:'Kontrollera banan och kör manuellt vid behov.', count:8, total:43}
       ],
       notifTitle:'VNA 03 · Fel upptäckt', notifText:'Platsen full efter avlämning.',
-      beskrivning:'Full after drop — VNA 03'
+      beskrivning:'Full after drop — VNA 03', short:'VNA 03 — Full after drop'
     },
     rejektOverhang: {
       system:'SSC', equip:'Rejekt', title:'SSC Automatlager', code:'OVERHANG BACK',
@@ -1114,7 +1114,7 @@
         {text:'Kontrollera lock, kragar eller annan synlig orsak.', count:41, total:142}
       ],
       notifTitle:'Rejekt · Fel upptäckt', notifText:'Overhang back — något sticker ut bakom pallen.',
-      beskrivning:'Overhang back — Rejekt'
+      beskrivning:'Overhang back — Rejekt', short:'Rejekt — Overhang back'
     },
     exv03safety: {
       system:'SSC', equip:'EXV 03', title:'SSC Automatlager', code:'SAFETYSTATUS FORKTIP LEFT',
@@ -1125,7 +1125,7 @@
         {text:'Ta bort träflisa som hänger i gaffeltunneln.', count:2, total:13}
       ],
       notifTitle:'EXV 03 · Fel upptäckt', notifText:'Hinder vid vänster gaffelspets.',
-      beskrivning:'SafetyStatus Forktip left — EXV 03'
+      beskrivning:'SafetyStatus Forktip left — EXV 03', short:'EXV 03 — Forktip left'
     },
     naisePall: {
       system:'NAiSE', equip:'NAiSE', title:'NAiSE', code:'PALLET DAMAGE DETECTED',
@@ -1136,7 +1136,7 @@
         {text:'Kontakta lageransvarig om skadan är omfattande.'}
       ],
       notifTitle:'NAiSE · Fel upptäckt', notifText:'En pall bedöms vara skadad.',
-      beskrivning:'Pall trasig — NAiSE'
+      beskrivning:'Pall trasig — NAiSE', short:'NAiSE — Pall trasig'
     },
     naiseBlockerad: {
       system:'NAiSE', equip:'NAiSE', title:'NAiSE', code:'CONVEYOR BLOCKED (SPÅNGBINGE)',
@@ -1147,7 +1147,7 @@
         {text:'Larma underhåll om blockeringen sitter hårt.'}
       ],
       notifTitle:'NAiSE · Fel upptäckt', notifText:'Spångbingen är blockerad.',
-      beskrivning:'Spångbinge blockerad — NAiSE'
+      beskrivning:'Spångbinge blockerad — NAiSE', short:'NAiSE — Spångbinge blockerad'
     },
     naiseRestart: {
       system:'NAiSE', equip:'NAiSE', title:'NAiSE', code:'SYSTEM RESTART REQUIRED',
@@ -1158,7 +1158,7 @@
         {text:'Kontrollera att inga uppdrag pågår innan omstart.'}
       ],
       notifTitle:'NAiSE · Fel upptäckt', notifText:'Systemet behöver en omstart.',
-      beskrivning:'Behöver omstart — NAiSE'
+      beskrivning:'Behöver omstart — NAiSE', short:'NAiSE — Behöver omstart'
     }
   };
 
@@ -2073,24 +2073,26 @@
     const ids = Object.keys(activeIncidents).filter(id => activeIncidents[id].system === system);
     if(!ids.length){ resetCard(system); return; }
     c.card.classList.add('fault');
+    c.t2.textContent = c.normalT2;
     if(ids.length === 1){
       const inc = activeIncidents[ids[0]];
-      c.t1.textContent = inc.acceptedBy ? 'Åtgärdas' : 'Fel upptäckt';
-      c.t2.textContent = FAULTS[inc.key] ? FAULTS[inc.key].equip : inc.key;
+      const f = FAULTS[inc.key];
+      const equipLabel = f ? f.equip : inc.key;
+      c.t1.textContent = (inc.acceptedBy ? 'Åtgärdas · ' : 'Fel upptäckt · ') + equipLabel;
       c.list.innerHTML = '';
     } else {
       c.t1.textContent = ids.length + ' aktiva fel';
-      c.t2.textContent = 'Välj vilket som ska åtgärdas';
       const sorted = ids.slice().sort((a,b) => activeIncidents[a].ts - activeIncidents[b].ts);
       c.list.innerHTML = sorted.map(id => {
         const inc = activeIncidents[id];
         const f = FAULTS[inc.key];
+        const label = f ? f.short : inc.key;
         const sub = inc.acceptedBy ? ('Åtgärdas av ' + inc.acceptedBy) : 'Väntar på förare';
         return `
           <div class="incident-row${inc.acceptedBy ? ' taken' : ''}" data-incident-id="${id}">
             <div class="ir-dot"></div>
             <div class="ir-text">
-              <div class="ir-eq">${f ? f.equip : inc.key}</div>
+              <div class="ir-eq">${label}</div>
               <div class="ir-sub">${sub}</div>
             </div>
             <div class="ir-chev"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></div>
